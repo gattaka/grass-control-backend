@@ -45,6 +45,7 @@ public class MusicService {
 	public void reindex() {
 		rootPath = Paths.get(musicPath);
 		ItemTO rootItem = new ItemTO();
+		rootItem.setName("");
 		rootItem.setPath(Path.of(""));
 		try {
 			list(rootItem);
@@ -59,21 +60,23 @@ public class MusicService {
 	}
 
 	private void list(ItemTO item) throws IOException {
-		Files.list(rootPath.resolve(item.getPath())).forEach(f -> {
+		Path parentPath = item.getPath().resolve(item.getName());
+		Path parentFullPath = rootPath.resolve(parentPath);
+		Files.list(parentFullPath).forEach(f -> {
 			ItemTO childItem = new ItemTO();
 			childItem.setName(f.getFileName().toString());
-			childItem.setPath(item.getPath().resolve(childItem.getName()));
+			childItem.setPath(parentPath);
 
-			Path fullPath = rootPath.resolve(childItem.getPath());
+			Path childFullPath = parentFullPath.resolve(childItem.getName());
 
-			logger.info("Indexuji: " + fullPath);
+			logger.info("Indexuji: " + childFullPath);
 
-			if (Files.isDirectory(fullPath)) {
+			if (Files.isDirectory(childFullPath)) {
 				childItem.setDirectory(true);
 				try {
 					list(childItem);
 				} catch (IOException e) {
-					logger.warn("Nezdařilo se naindexovat adresář " + fullPath, e.getMessage(), e);
+					logger.warn("Nezdařilo se naindexovat adresář " + childFullPath, e.getMessage(), e);
 				}
 			} else {
 				int dotIndex = childItem.getName().lastIndexOf(".");
