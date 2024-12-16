@@ -4,6 +4,7 @@ import cz.gattserver.grasscontrol.interfaces.VersionTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,8 +29,21 @@ public class MusicResource {
 		musicService.index();
 	}
 
+	@GetMapping(value = "/search")
+	List<ShortItemTO> search(@Nullable String searchPhrase) {
+		if (searchPhrase == null || searchPhrase.isEmpty())
+			return musicService.getRootItems();
+		return musicService.getItemsBySearch(searchPhrase);
+	}
+
 	@GetMapping(value = "/list")
-	List<ShortItemTO> list() {
-		return musicService.getItems();
+	List<ShortItemTO> list(@Nullable String path) {
+		if (path == null || path.isEmpty()) {
+			// http://localhost:8080/api/list
+			return musicService.getRootItems();
+		} else {
+			// http://localhost:8080/api/list?path=2000s
+			return musicService.getItems(path);
+		}
 	}
 }
