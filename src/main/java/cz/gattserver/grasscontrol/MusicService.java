@@ -3,6 +3,7 @@ package cz.gattserver.grasscontrol;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,9 @@ import java.util.stream.Stream;
 public class MusicService {
 
 	private final Logger logger = LoggerFactory.getLogger(MusicService.class);
+
+	@Autowired
+	private VLCService vlcService;
 
 	@Value("${music.path}")
 	private String musicPath;
@@ -36,22 +40,32 @@ public class MusicService {
 		for (String type : mimeFilter.toLowerCase().split(","))
 			acceptedTypes.add(type.trim());
 
-		reindex();
+		// TODO
+		//reindex();
 	}
 
-	public List<ShortItemTO> getItems(String path) {
-		if (path.length() == 0)
-			return Collections.emptyList();
+	public ItemTO getItem(String path) {
+		if (path.isEmpty())
+			return null;
+		ItemTO targetItem = null;
 		List<ItemTO> list = items;
 		for (String part : path.split("/")) {
 			for (ItemTO item : list) {
 				if (item.getName().equals(part)) {
+					targetItem = item;
 					list = item.getChildren();
 					break;
 				}
 			}
 		}
-		return mapAsShort(list);
+		return targetItem;
+	}
+
+	public List<ShortItemTO> getItems(String path) {
+		if (path.isEmpty())
+			return Collections.emptyList();
+		ItemTO targetItem = getItem(path);
+		return mapAsShort(targetItem.getChildren());
 	}
 
 	public List<ShortItemTO> getRootItems() {
@@ -84,7 +98,7 @@ public class MusicService {
 			items = rootItem.getChildren();
 			rootItems = mapAsShort(rootItem.getChildren());
 		} catch (IOException e) {
-			logger.error("Nezdařilo se naindexovat kořenový adresář " + musicPath, e.getMessage(), e);
+			logger.error("Nezdařilo se naindexovat kořenový adresář {}, {}", musicPath, e.getMessage(), e);
 			throw new RuntimeException(e);
 		}
 	}
@@ -101,14 +115,14 @@ public class MusicService {
 
 				Path childFullPath = parentFullPath.resolve(childItem.getName());
 
-				logger.info("Indexuji: " + childFullPath);
+				logger.info("Indexuji: {}", childFullPath);
 
 				if (Files.isDirectory(childFullPath)) {
 					childItem.setDirectory(true);
 					try {
 						list(childItem);
 					} catch (IOException e) {
-						logger.warn("Nezdařilo se naindexovat adresář " + childFullPath, e.getMessage(), e);
+						logger.warn("Nezdařilo se naindexovat adresář {}, {}", childFullPath, e.getMessage(), e);
 					}
 				} else {
 					int dotIndex = childItem.getName().lastIndexOf(".");
@@ -139,5 +153,36 @@ public class MusicService {
 			results.add(mapAsShort(item));
 		for (ItemTO childItem : item.getChildren())
 			search(searchPhrase, childItem, results);
+	}
+
+	public String getStatus() {
+		return vlcService.sendCommand("");
+	}
+
+	public void play() {
+		vlcService.sendCommand("?command=pl_play");
+	}
+
+	public void pause() {
+		vlcService.sendCommand("?command=pl_pause");
+	}
+
+	public void stop() {
+		vlcService.sendCommand("?command=pl_stop");
+	}
+
+	public void enqueue(String path) {
+		ItemTO item = getItem(path);
+		if (item.isDirectory()) {
+			// TODO rekurzivní rozbalení a enqueue
+		} else {
+			vlcService.sendCommand("?command=in_enqueue&input=" +
+					rootPath.resolve(item.getPath()).resolve(item.getName()));
+		}
+	}
+
+	public void enqueueAndPlay(String path) {
+		enqueue(path);
+		play();
 	}
 }

@@ -36,6 +36,38 @@ public class MusicResource {
 		return musicService.getItemsBySearch(searchPhrase);
 	}
 
+	@GetMapping(value = "/enqueue")
+	void enqueue(@Nullable String path) {
+		if (path != null && !path.isEmpty())
+			musicService.enqueue(path);
+	}
+
+	@GetMapping(value = "/enqueue-and-play")
+	void enqueueAndPlay(@Nullable String path) {
+		if (path != null && !path.isEmpty())
+			musicService.enqueueAndPlay(path);
+	}
+
+	@GetMapping(value = "/status")
+	String status() {
+		return musicService.getStatus();
+	}
+
+	@GetMapping(value = "/play")
+	void play() {
+		musicService.play();
+	}
+
+	@GetMapping(value = "/pause")
+	void pause() {
+		musicService.pause();
+	}
+
+	@GetMapping(value = "/stop")
+	void stop() {
+		musicService.stop();
+	}
+
 	@GetMapping(value = "/list")
 	List<ShortItemTO> list(@Nullable String path) {
 		if (path == null || path.isEmpty()) {
