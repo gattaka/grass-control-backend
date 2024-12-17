@@ -31,7 +31,7 @@ public class VLCService {
 	public String sendCommand(String command) {
 		try {
 			// Create the URL object
-			URL url = new URL(vlcURL + "/requests/status.json" + command);
+			URL url = new URL(vlcURL + "/requests/" + command);
 
 			// Open connection to the URL
 			HttpURLConnection connection = (HttpURLConnection) url.openConnection();

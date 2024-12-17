@@ -8,10 +8,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 @Service
@@ -40,13 +43,13 @@ public class MusicService {
 		for (String type : mimeFilter.toLowerCase().split(","))
 			acceptedTypes.add(type.trim());
 
-		// TODO
-		//reindex();
+		reindex();
 	}
 
 	public ItemTO getItem(String path) {
 		if (path.isEmpty())
 			return null;
+		if (path.startsWith("/")) path = path.substring(1);
 		ItemTO targetItem = null;
 		List<ItemTO> list = items;
 		for (String part : path.split("/")) {
@@ -156,51 +159,60 @@ public class MusicService {
 	}
 
 	public String getStatus() {
-		return vlcService.sendCommand("");
+		return vlcService.sendCommand("status.json");
+	}
+
+	public String getPlaylist() {
+		return vlcService.sendCommand("playlist.json");
 	}
 
 	public void play() {
-		vlcService.sendCommand("?command=pl_play");
+		vlcService.sendCommand("status.json?command=pl_play");
 	}
 
 	public void pause() {
-		vlcService.sendCommand("?command=pl_pause");
+		vlcService.sendCommand("status.json?command=pl_pause");
 	}
 
 	public void stop() {
-		vlcService.sendCommand("?command=pl_stop");
+		vlcService.sendCommand("status.json?command=pl_stop");
 	}
 
 	public void previous() {
-		vlcService.sendCommand("?command=pl_previous");
+		vlcService.sendCommand("status.json?command=pl_previous");
 	}
 
 	public void next() {
-		vlcService.sendCommand("?command=pl_next");
+		vlcService.sendCommand("status.json?command=pl_next");
 	}
 
 	public void loop() {
-		vlcService.sendCommand("?command=pl_loop");
+		vlcService.sendCommand("status.json?command=pl_loop");
 	}
 
 	public void random() {
-		vlcService.sendCommand("?command=pl_random");
+		vlcService.sendCommand("status.json?command=pl_random");
 	}
 
-	public void enqueue(String path) {
+	private void preparePath(String path, Consumer<String> consumer) {
 		ItemTO item = getItem(path);
 		if (item.isDirectory()) {
 			// TODO rekurzivní rozbalení a enqueue
 		} else {
-			vlcService.sendCommand("?command=in_enqueue&input=" +
-					rootPath.resolve(item.getPath()).resolve(item.getName()));
+			String param = rootPath.resolve(item.getPath()).resolve(item.getName()).toString();
+			param = "file:///" + URLEncoder.encode(param, StandardCharsets.UTF_8);
+			// VLC má vadu a nebere URL mezery jako '+', zvládá jen '%20'
+			param = param.replace("+", "%20");
+			consumer.accept(param);
 		}
 	}
 
-	public void enqueueAndPlay(String path) {
-		enqueue(path);
-		play();
+	public void enqueue(String path) {
+		preparePath(path, s -> vlcService.sendCommand("status.json?command=in_enqueue&input=" + s));
 	}
 
+	public void enqueueAndPlay(String path) {
+		preparePath(path, s -> vlcService.sendCommand("status.json?command=in_play&input=" + s));
+	}
 
 }

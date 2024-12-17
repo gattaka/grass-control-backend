@@ -53,6 +53,11 @@ public class MusicResource {
 		return musicService.getStatus();
 	}
 
+	@GetMapping(value = "/playlist")
+	String playlist() {
+		return musicService.getPlaylist();
+	}
+
 	@GetMapping(value = "/play")
 	void play() {
 		musicService.play();
