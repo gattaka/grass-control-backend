@@ -171,6 +171,22 @@ public class MusicService {
 		vlcService.sendCommand("?command=pl_stop");
 	}
 
+	public void previous() {
+		vlcService.sendCommand("?command=pl_previous");
+	}
+
+	public void next() {
+		vlcService.sendCommand("?command=pl_next");
+	}
+
+	public void loop() {
+		vlcService.sendCommand("?command=pl_loop");
+	}
+
+	public void random() {
+		vlcService.sendCommand("?command=pl_random");
+	}
+
 	public void enqueue(String path) {
 		ItemTO item = getItem(path);
 		if (item.isDirectory()) {
@@ -185,4 +201,6 @@ public class MusicService {
 		enqueue(path);
 		play();
 	}
+
+
 }

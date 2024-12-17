@@ -68,6 +68,26 @@ public class MusicResource {
 		musicService.stop();
 	}
 
+	@GetMapping(value = "/previous")
+	void previous() {
+		musicService.previous();
+	}
+
+	@GetMapping(value = "/next")
+	void next() {
+		musicService.next();
+	}
+
+	@GetMapping(value = "/loop")
+	void loop() {
+		musicService.loop();
+	}
+
+	@GetMapping(value = "/random")
+	void random() {
+		musicService.random();
+	}
+
 	@GetMapping(value = "/list")
 	List<ShortItemTO> list(@Nullable String path) {
 		if (path == null || path.isEmpty()) {
