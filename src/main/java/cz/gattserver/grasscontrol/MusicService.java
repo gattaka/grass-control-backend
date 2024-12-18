@@ -194,10 +194,10 @@ public class MusicService {
 		vlcService.sendCommand("status.json?command=pl_random");
 	}
 
-	private void preparePath(String path, Consumer<String> consumer) {
-		ItemTO item = getItem(path);
+	private void preparePath(ItemTO item, Consumer<String> consumer) {
 		if (item.isDirectory()) {
-			// TODO rekurzivní rozbalení a enqueue
+			for (ItemTO child : item.getChildren())
+				preparePath(child, consumer);
 		} else {
 			String param = rootPath.resolve(item.getPath()).resolve(item.getName()).toString();
 			param = "file:///" + URLEncoder.encode(param, StandardCharsets.UTF_8);
@@ -208,11 +208,23 @@ public class MusicService {
 	}
 
 	public void enqueue(String path) {
-		preparePath(path, s -> vlcService.sendCommand("status.json?command=in_enqueue&input=" + s));
+		preparePath(getItem(path), s -> vlcService.sendCommand("status.json?command=in_enqueue&input=" + s));
 	}
 
 	public void enqueueAndPlay(String path) {
-		preparePath(path, s -> vlcService.sendCommand("status.json?command=in_play&input=" + s));
+		preparePath(getItem(path), s -> vlcService.sendCommand("status.json?command=in_play&input=" + s));
+	}
+
+	public void playFromPlaylist(int id) {
+		vlcService.sendCommand("status.json?command=pl_play&id=" + id);
+	}
+
+	public void removeFromPlaylist(int id) {
+		vlcService.sendCommand("status.json?command=pl_delete&id=" + id);
+	}
+
+	public void emptyPlaylist() {
+		vlcService.sendCommand("status.json?command=pl_empty");
 	}
 
 }

@@ -58,6 +58,21 @@ public class MusicResource {
 		return musicService.getPlaylist();
 	}
 
+	@GetMapping(value = "/playFromPlaylist")
+	void playFromPlaylist(int id) {
+		musicService.playFromPlaylist(id);
+	}
+
+	@GetMapping(value = "/removeFromPlaylist")
+	void removeFromPlaylist(int id) {
+		musicService.removeFromPlaylist(id);
+	}
+
+	@GetMapping(value = "/emptyPlaylist")
+	void emptyPlaylist() {
+		musicService.emptyPlaylist();
+	}
+
 	@GetMapping(value = "/play")
 	void play() {
 		musicService.play();
