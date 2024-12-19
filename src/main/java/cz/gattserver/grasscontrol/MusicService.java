@@ -1,5 +1,9 @@
 package cz.gattserver.grasscontrol;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -194,6 +198,9 @@ public class MusicService {
 		vlcService.sendCommand("status.json?command=pl_random");
 	}
 
+	// Když se do vlc přidá 1 soubor a 1 adresář, VLC mězi ně pro shuffle rozdělí pravděpodobnost 50:50 na spuštění --
+	// dokud nepadne adresář, "nerozbalí" ho na jednotlivé soubory a mezi ně znovu rozpočítá pravděpodobnost. První
+	// soubor se tedy spouští často opakovaně než losování konečně padne na adresář
 	private void preparePath(ItemTO item, Consumer<String> consumer) {
 		if (item.isDirectory()) {
 			for (ItemTO child : item.getChildren())
@@ -227,4 +234,26 @@ public class MusicService {
 		vlcService.sendCommand("status.json?command=pl_empty");
 	}
 
+	public void emptyPlaylistExceptPlaying() {
+		String status = vlcService.sendCommand("status.json");
+		String playlist = vlcService.sendCommand("playlist.json");
+
+		JsonObject statusJson = JsonParser.parseString(status)
+				.getAsJsonObject();
+		int currentId = statusJson.get("currentplid").getAsInt();
+
+		JsonObject playlistJson = JsonParser.parseString(playlist)
+				.getAsJsonObject();
+		JsonArray children = playlistJson.get("children").getAsJsonArray();
+		JsonArray songs = children.get(0).getAsJsonObject().get("children").getAsJsonArray();
+		for (JsonElement song : songs) {
+			int id = song.getAsJsonObject().get("id").getAsInt();
+			if (id != currentId)
+				removeFromPlaylist(id);
+		}
+	}
+
+	public void seek(int position) {
+		vlcService.sendCommand("status.json?command=seek&val=" + position);
+	}
 }

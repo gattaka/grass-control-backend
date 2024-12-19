@@ -42,6 +42,11 @@ public class MusicResource {
 			musicService.enqueue(path);
 	}
 
+	@GetMapping(value = "/seek")
+	void seek(@Nullable int position) {
+			musicService.seek(position);
+	}
+
 	@GetMapping(value = "/enqueue-and-play")
 	void enqueueAndPlay(@Nullable String path) {
 		if (path != null && !path.isEmpty())
@@ -71,6 +76,11 @@ public class MusicResource {
 	@GetMapping(value = "/emptyPlaylist")
 	void emptyPlaylist() {
 		musicService.emptyPlaylist();
+	}
+
+	@GetMapping(value = "/emptyPlaylistExceptPlaying")
+	void emptyPlaylistExceptPlaying() {
+		musicService.emptyPlaylistExceptPlaying();
 	}
 
 	@GetMapping(value = "/play")
