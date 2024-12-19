@@ -47,6 +47,11 @@ public class MusicResource {
 			musicService.seek(position);
 	}
 
+	@GetMapping(value = "/volume")
+	void volume(@Nullable int position) {
+		musicService.volume(position);
+	}
+
 	@GetMapping(value = "/enqueue-and-play")
 	void enqueueAndPlay(@Nullable String path) {
 		if (path != null && !path.isEmpty())

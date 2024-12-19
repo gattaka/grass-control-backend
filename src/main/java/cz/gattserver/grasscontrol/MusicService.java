@@ -256,4 +256,8 @@ public class MusicService {
 	public void seek(int position) {
 		vlcService.sendCommand("status.json?command=seek&val=" + position);
 	}
+
+	public void volume(int position) {
+		vlcService.sendCommand("status.json?command=volume&val=" + position);
+	}
 }
