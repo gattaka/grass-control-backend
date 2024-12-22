@@ -1,10 +1,12 @@
 package cz.gattserver.grasscontrol;
 
+import cz.gattserver.grasscontrol.interfaces.ResultTO;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.beans.PropertyChangeEvent;
@@ -15,7 +17,6 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Base64;
-import java.util.function.Function;
 
 @Service
 public class VLCService {
@@ -28,7 +29,7 @@ public class VLCService {
 	@Value("${vlc.pass}")
 	private String vlcPass;
 
-	public String sendCommand(String command) {
+	public ResultTO sendCommand(String command) {
 		try {
 			// Create the URL object
 			URL url = new URL(vlcURL + "/requests/" + command);
@@ -60,13 +61,16 @@ public class VLCService {
 				in.close();
 
 				// Output the response
-				return response.toString();
+				return ResultTO.success(response.toString(), responseCode);
 			} else {
-				logger.warn("VLC connection failed with code {}", responseCode);
+				String msg = "VLC connection failed with code " + responseCode;
+				logger.warn(msg);
+				return ResultTO.fail(responseCode, msg);
 			}
 		} catch (IOException e) {
-			logger.error("VLC connection failed with exception", e);
+			String msg = "VLC connection failed with exception " + e.getMessage();
+			logger.error(msg);
+			return ResultTO.fail(HttpStatus.SERVICE_UNAVAILABLE.value(), msg);
 		}
-		throw new RuntimeException("VLC connection failed");
 	}
 }

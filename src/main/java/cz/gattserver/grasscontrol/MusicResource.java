@@ -1,15 +1,14 @@
 package cz.gattserver.grasscontrol;
 
+import cz.gattserver.grasscontrol.interfaces.ResultTO;
 import cz.gattserver.grasscontrol.interfaces.VersionTO;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.io.IOException;
 import java.util.List;
 
 @RequestMapping("api")
@@ -44,7 +43,7 @@ public class MusicResource {
 
 	@GetMapping(value = "/seek")
 	void seek(@Nullable int position) {
-			musicService.seek(position);
+		musicService.seek(position);
 	}
 
 	@GetMapping(value = "/volume")
@@ -59,13 +58,21 @@ public class MusicResource {
 	}
 
 	@GetMapping(value = "/status")
-	String status() {
-		return musicService.getStatus();
+	String status(HttpServletResponse response) {
+		ResultTO resultTO = musicService.getStatus();
+		if (resultTO.isSuccess())
+			return resultTO.getValue();
+		response.setStatus(resultTO.getStatus());
+		return resultTO.getMessage();
 	}
 
 	@GetMapping(value = "/playlist")
-	String playlist() {
-		return musicService.getPlaylist();
+	String playlist(HttpServletResponse response) {
+		ResultTO resultTO = musicService.getPlaylist();
+		if (resultTO.isSuccess())
+			return resultTO.getValue();
+		response.setStatus(resultTO.getStatus());
+		return resultTO.getMessage();
 	}
 
 	@GetMapping(value = "/playFromPlaylist")

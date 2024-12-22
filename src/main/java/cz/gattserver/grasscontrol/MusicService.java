@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import cz.gattserver.grasscontrol.interfaces.ResultTO;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,11 +163,11 @@ public class MusicService {
 			search(searchPhrase, childItem, results);
 	}
 
-	public String getStatus() {
+	public ResultTO getStatus() {
 		return vlcService.sendCommand("status.json");
 	}
 
-	public String getPlaylist() {
+	public ResultTO getPlaylist() {
 		return vlcService.sendCommand("playlist.json");
 	}
 
@@ -234,15 +235,20 @@ public class MusicService {
 		vlcService.sendCommand("status.json?command=pl_empty");
 	}
 
-	public void emptyPlaylistExceptPlaying() {
-		String status = vlcService.sendCommand("status.json");
-		String playlist = vlcService.sendCommand("playlist.json");
+	public ResultTO emptyPlaylistExceptPlaying() {
+		ResultTO statusResult = vlcService.sendCommand("status.json");
+		if (!statusResult.isSuccess())
+			return statusResult;
 
-		JsonObject statusJson = JsonParser.parseString(status)
+		ResultTO playlistResult = vlcService.sendCommand("playlistResult.json");
+		if (!playlistResult.isSuccess())
+			return playlistResult;
+
+		JsonObject statusJson = JsonParser.parseString(statusResult.getValue())
 				.getAsJsonObject();
 		int currentId = statusJson.get("currentplid").getAsInt();
 
-		JsonObject playlistJson = JsonParser.parseString(playlist)
+		JsonObject playlistJson = JsonParser.parseString(playlistResult.getValue())
 				.getAsJsonObject();
 		JsonArray children = playlistJson.get("children").getAsJsonArray();
 		JsonArray songs = children.get(0).getAsJsonObject().get("children").getAsJsonArray();
@@ -251,6 +257,8 @@ public class MusicService {
 			if (id != currentId)
 				removeFromPlaylist(id);
 		}
+
+		return ResultTO.success("Success", 200);
 	}
 
 	public void seek(int position) {
