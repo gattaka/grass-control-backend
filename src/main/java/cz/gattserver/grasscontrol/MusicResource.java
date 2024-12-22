@@ -20,7 +20,7 @@ public class MusicResource {
 
 	@GetMapping(value = "/version")
 	VersionTO version() {
-		return new VersionTO("1.0");
+		return new VersionTO("2.0");
 	}
 
 	@GetMapping(value = "/reindex")
