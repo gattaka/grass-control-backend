@@ -307,6 +307,7 @@ public class MusicService {
 			TagTO tagTO = new TagTO();
 
 			if (tag != null) {
+				tagTO.setTitle(tag.getFirst(FieldKey.TITLE));
 				tagTO.setArtist(tag.getFirst(FieldKey.ARTIST));
 				tagTO.setAlbum(tag.getFirst(FieldKey.ALBUM));
 				tagTO.setYear(tag.getFirst(FieldKey.YEAR));
