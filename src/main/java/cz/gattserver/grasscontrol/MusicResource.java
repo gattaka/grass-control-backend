@@ -1,14 +1,17 @@
 package cz.gattserver.grasscontrol;
 
 import cz.gattserver.grasscontrol.interfaces.ResultTO;
+import cz.gattserver.grasscontrol.interfaces.TagTO;
 import cz.gattserver.grasscontrol.interfaces.VersionTO;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.lang.Nullable;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.HandlerMapping;
 
+import java.net.URL;
+import java.net.URLDecoder;
 import java.util.List;
 
 @RequestMapping("api")
@@ -17,6 +20,16 @@ public class MusicResource {
 
 	@Autowired
 	private MusicService musicService;
+
+	private String getCleanDynamicPath(HttpServletRequest request) {
+		String pattern = (String) request.getAttribute(
+				HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
+		String restOfTheUrl = (String) request.getAttribute(
+				HandlerMapping.PATH_WITHIN_HANDLER_MAPPING_ATTRIBUTE);
+		// -2 kvůli **
+		String rawURL = restOfTheUrl.substring(pattern.length() - 2);
+		return URLDecoder.decode(rawURL);
+	}
 
 	@GetMapping(value = "/version")
 	VersionTO version() {
@@ -28,33 +41,39 @@ public class MusicResource {
 		musicService.index();
 	}
 
-	@GetMapping(value = "/search")
-	List<ShortItemTO> search(@Nullable String searchPhrase) {
-		if (searchPhrase == null || searchPhrase.isEmpty())
-			return musicService.getRootItems();
+	@GetMapping(path = "/search/{searchPhrase}")
+	List<ShortItemTO> search(@PathVariable String searchPhrase) {
 		return musicService.getItemsBySearch(searchPhrase);
 	}
 
-	@GetMapping(value = "/enqueue")
-	void enqueue(@Nullable String path) {
-		if (path != null && !path.isEmpty())
-			musicService.enqueue(path);
+	@GetMapping(path = "/enqueue/**")
+	void enqueue(HttpServletRequest request) {
+		musicService.enqueue(getCleanDynamicPath(request));
 	}
 
-	@GetMapping(value = "/seek")
-	void seek(@Nullable int position) {
+	@GetMapping(path = "/seek/{position}")
+	void seek(@PathVariable int position) {
 		musicService.seek(position);
 	}
 
-	@GetMapping(value = "/volume")
-	void volume(@Nullable int position) {
+	@GetMapping(path = "/volume/{position}")
+	void volume(@PathVariable int position) {
 		musicService.volume(position);
 	}
 
-	@GetMapping(value = "/enqueue-and-play")
-	void enqueueAndPlay(@Nullable String path) {
-		if (path != null && !path.isEmpty())
-			musicService.enqueueAndPlay(path);
+	@GetMapping(path = "/enqueue-and-play/**")
+	void enqueueAndPlay(HttpServletRequest request) {
+		musicService.enqueueAndPlay(getCleanDynamicPath(request));
+	}
+
+	@GetMapping(path = "/read-tag/{id}")
+	TagTO readTag(@PathVariable int id) {
+		return musicService.readTag(id);
+	}
+
+	@PutMapping(path = "/write-tag/{id}")
+	void writeTag(@RequestBody TagTO tag, @PathVariable int id) {
+		musicService.writeTag(id, tag);
 	}
 
 	@GetMapping(value = "/status")
@@ -75,22 +94,22 @@ public class MusicResource {
 		return resultTO.getMessage();
 	}
 
-	@GetMapping(value = "/playFromPlaylist")
-	void playFromPlaylist(int id) {
+	@GetMapping(path = "/play-from-playlist/{id}")
+	void playFromPlaylist(@PathVariable int id) {
 		musicService.playFromPlaylist(id);
 	}
 
-	@GetMapping(value = "/removeFromPlaylist")
-	void removeFromPlaylist(int id) {
+	@GetMapping(path = "/remove-from-playlist/{id}")
+	void removeFromPlaylist(@PathVariable int id) {
 		musicService.removeFromPlaylist(id);
 	}
 
-	@GetMapping(value = "/emptyPlaylist")
+	@GetMapping(value = "/empty-playlist")
 	void emptyPlaylist() {
 		musicService.emptyPlaylist();
 	}
 
-	@GetMapping(value = "/emptyPlaylistExceptPlaying")
+	@GetMapping(value = "/empty-playlist-except-playing")
 	void emptyPlaylistExceptPlaying() {
 		musicService.emptyPlaylistExceptPlaying();
 	}
@@ -130,14 +149,13 @@ public class MusicResource {
 		musicService.random();
 	}
 
-	@GetMapping(value = "/list")
-	List<ShortItemTO> list(@Nullable String path) {
-		if (path == null || path.isEmpty()) {
-			// http://localhost:8080/api/list
-			return musicService.getRootItems();
-		} else {
-			// http://localhost:8080/api/list?path=2000s
-			return musicService.getItems(path);
-		}
+	@GetMapping(path = "/list/**")
+	List<ShortItemTO> list(HttpServletRequest request) {
+		return musicService.getItems(getCleanDynamicPath(request));
+	}
+
+	@GetMapping(path = "/list-all")
+	List<ShortItemTO> listAll() {
+		return musicService.getRootItems();
 	}
 }

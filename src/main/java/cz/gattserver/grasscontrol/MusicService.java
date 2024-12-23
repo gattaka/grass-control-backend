@@ -1,17 +1,30 @@
 package cz.gattserver.grasscontrol;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.google.gson.*;
+import com.mpatric.mp3agic.ID3v2;
+import com.mpatric.mp3agic.InvalidDataException;
+import com.mpatric.mp3agic.Mp3File;
+import com.mpatric.mp3agic.UnsupportedTagException;
 import cz.gattserver.grasscontrol.interfaces.ResultTO;
+import cz.gattserver.grasscontrol.interfaces.TagTO;
 import jakarta.annotation.PostConstruct;
+import org.jaudiotagger.audio.AudioFile;
+import org.jaudiotagger.audio.AudioFileIO;
+import org.jaudiotagger.audio.AudioHeader;
+import org.jaudiotagger.audio.exceptions.CannotReadException;
+import org.jaudiotagger.audio.exceptions.CannotWriteException;
+import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
+import org.jaudiotagger.audio.exceptions.ReadOnlyFileException;
+import org.jaudiotagger.tag.FieldKey;
+import org.jaudiotagger.tag.Tag;
+import org.jaudiotagger.tag.TagException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -52,8 +65,7 @@ public class MusicService {
 	}
 
 	public ItemTO getItem(String path) {
-		if (path.isEmpty())
-			return null;
+		if (path.isEmpty()) return null;
 		if (path.startsWith("/")) path = path.substring(1);
 		ItemTO targetItem = null;
 		List<ItemTO> list = items;
@@ -70,8 +82,7 @@ public class MusicService {
 	}
 
 	public List<ShortItemTO> getItems(String path) {
-		if (path.isEmpty())
-			return Collections.emptyList();
+		if (path.isEmpty()) return Collections.emptyList();
 		ItemTO targetItem = getItem(path);
 		return mapAsShort(targetItem.getChildren());
 	}
@@ -88,8 +99,7 @@ public class MusicService {
 	}
 
 	private ShortItemTO mapAsShort(ItemTO item) {
-		return new ShortItemTO(item.getName(),
-				formatPath(item.getPath()), item.isDirectory());
+		return new ShortItemTO(item.getName(), formatPath(item.getPath()), item.isDirectory());
 	}
 
 	private List<ShortItemTO> mapAsShort(List<ItemTO> items) {
@@ -134,11 +144,9 @@ public class MusicService {
 					}
 				} else {
 					int dotIndex = childItem.getName().lastIndexOf(".");
-					if (dotIndex == -1 || dotIndex == childItem.getName().length())
-						return;
+					if (dotIndex == -1 || dotIndex == childItem.getName().length()) return;
 					String extension = childItem.getName().substring(dotIndex + 1).toLowerCase();
-					if (!acceptedTypes.contains(extension))
-						return;
+					if (!acceptedTypes.contains(extension)) return;
 				}
 
 				childItem.setParent(parentItem);
@@ -157,8 +165,7 @@ public class MusicService {
 	}
 
 	private void search(String searchPhrase, ItemTO item, List<ShortItemTO> results) {
-		if (item.getName().toLowerCase().contains(searchPhrase))
-			results.add(mapAsShort(item));
+		if (item.getName().toLowerCase().contains(searchPhrase)) results.add(mapAsShort(item));
 		for (ItemTO childItem : item.getChildren())
 			search(searchPhrase, childItem, results);
 	}
@@ -237,25 +244,20 @@ public class MusicService {
 
 	public ResultTO emptyPlaylistExceptPlaying() {
 		ResultTO statusResult = vlcService.sendCommand("status.json");
-		if (!statusResult.isSuccess())
-			return statusResult;
+		if (!statusResult.isSuccess()) return statusResult;
 
-		ResultTO playlistResult = vlcService.sendCommand("playlistResult.json");
-		if (!playlistResult.isSuccess())
-			return playlistResult;
+		ResultTO playlistResult = getPlaylist();
+		if (!playlistResult.isSuccess()) return playlistResult;
 
-		JsonObject statusJson = JsonParser.parseString(statusResult.getValue())
-				.getAsJsonObject();
+		JsonObject statusJson = JsonParser.parseString(statusResult.getValue()).getAsJsonObject();
 		int currentId = statusJson.get("currentplid").getAsInt();
 
-		JsonObject playlistJson = JsonParser.parseString(playlistResult.getValue())
-				.getAsJsonObject();
+		JsonObject playlistJson = JsonParser.parseString(playlistResult.getValue()).getAsJsonObject();
 		JsonArray children = playlistJson.get("children").getAsJsonArray();
 		JsonArray songs = children.get(0).getAsJsonObject().get("children").getAsJsonArray();
 		for (JsonElement song : songs) {
 			int id = song.getAsJsonObject().get("id").getAsInt();
-			if (id != currentId)
-				removeFromPlaylist(id);
+			if (id != currentId) removeFromPlaylist(id);
 		}
 
 		return ResultTO.success("Success", 200);
@@ -267,5 +269,121 @@ public class MusicService {
 
 	public void volume(int position) {
 		vlcService.sendCommand("status.json?command=volume&val=" + position);
+	}
+
+	private String getUriById(int id) {
+		ResultTO playlistResult = getPlaylist();
+		if (!playlistResult.isSuccess()) throw new IllegalStateException("Nezdařilo se získat VLC playlist");
+
+		JsonObject playlistJson = JsonParser.parseString(playlistResult.getValue()).getAsJsonObject();
+		JsonArray children = playlistJson.get("children").getAsJsonArray();
+		JsonArray songs = children.get(0).getAsJsonObject().get("children").getAsJsonArray();
+		for (JsonElement song : songs) {
+			JsonObject songObject = song.getAsJsonObject();
+			if (songObject.get("id").getAsInt() == id) {
+				String uri = songObject.get("uri").getAsString();
+				return uri;
+			}
+		}
+
+		throw new IllegalStateException("Nezdařilo se nalézt položku playlistu s id " + id);
+	}
+
+	private File getFileByVLCUri(String uri) {
+		String prefix = "file:///";
+		if (uri.startsWith(prefix)) uri = uri.substring(prefix.length());
+		return new File(uri);
+	}
+
+	public TagTO readTag(int id) {
+		String uri = getUriById(id);
+		File file = getFileByVLCUri(uri);
+
+		try {
+			// https://www.jthink.net/jaudiotagger/examples_read.jsp
+			AudioFile f = AudioFileIO.read(file);
+			Tag tag = f.getTag();
+
+			TagTO tagTO = new TagTO();
+
+			if (tag != null) {
+				tagTO.setArtist(tag.getFirst(FieldKey.ARTIST));
+				tagTO.setAlbum(tag.getFirst(FieldKey.ALBUM));
+				tagTO.setYear(tag.getFirst(FieldKey.YEAR));
+				tagTO.setTrack(tag.getFirst(FieldKey.TRACK));
+				tagTO.setComposer(tag.getFirst(FieldKey.COMPOSER));
+			}
+
+			return tagTO;
+		} catch (Exception e) {
+			if (e instanceof InvalidAudioFrameException) return new TagTO();
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void writeTagWithJaudiotagger(File file, TagTO tagTO) throws CannotReadException, TagException,
+			InvalidAudioFrameException, ReadOnlyFileException, IOException, CannotWriteException {
+		// https://www.jthink.net/jaudiotagger/examples.jsp
+		AudioFile f = AudioFileIO.read(file);
+		Tag tag = f.getTagOrCreateDefault();
+		f.setTag(tag);
+
+		if (tagTO.getAlbum() != null)
+			tag.setField(FieldKey.ALBUM, tagTO.getAlbum());
+		if (tagTO.getArtist() != null)
+			tag.setField(FieldKey.ARTIST, tagTO.getArtist());
+		if (tagTO.getYear() != null)
+			tag.setField(FieldKey.YEAR, tagTO.getYear());
+		if (tagTO.getTrack() != null)
+			tag.setField(FieldKey.TRACK, tagTO.getTrack());
+		if (tagTO.getComposer() != null)
+			tag.setField(FieldKey.COMPOSER, tagTO.getComposer());
+		if (tagTO.getTitle() != null)
+			tag.setField(FieldKey.TITLE, tagTO.getTitle());
+
+		f.commit();
+	}
+
+	private void writeTagWithMP3agick(File file, TagTO tagTO) throws InvalidDataException, UnsupportedTagException,
+			IOException {
+		Mp3File mp3File = new Mp3File(file);
+
+		// TODO
+		if (mp3File.hasId3v1Tag() || mp3File.hasId3v2Tag()) {
+			System.out.println("Tags found!");
+			ID3v2 id3v2Tag = mp3File.getId3v2Tag();
+			System.out.println("Artist: " + id3v2Tag.getArtist());
+			System.out.println("Title: " + id3v2Tag.getTitle());
+		} else {
+			System.out.println("No ID3 tags found!");
+		}
+	}
+
+	public void writeTag(int id, TagTO tag) {
+		String uri = getUriById(id);
+		File file = getFileByVLCUri(uri);
+
+		if (!file.exists())
+			throw new IllegalStateException("Soubor neexistuje");
+
+		try {
+			writeTagWithJaudiotagger(file, tag);
+			return;
+		} catch (CannotWriteException | CannotReadException | IOException | ReadOnlyFileException e) {
+			throw new RuntimeException("Problém se čtením souboru", e);
+		} catch (TagException | InvalidAudioFrameException e) {
+			// problém se čtením struktury souburu, dáme šanci další knihovně
+		}
+
+		try {
+			writeTagWithMP3agick(file, tag);
+			return;
+		} catch (InvalidDataException e) {
+			throw new RuntimeException(e);
+		} catch (UnsupportedTagException e) {
+			throw new RuntimeException(e);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
 	}
 }
