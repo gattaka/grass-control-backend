@@ -345,21 +345,6 @@ public class MusicService {
 		f.commit();
 	}
 
-	private void writeTagWithMP3agick(File file, TagTO tagTO) throws InvalidDataException, UnsupportedTagException,
-			IOException {
-		Mp3File mp3File = new Mp3File(file);
-
-		// TODO
-		if (mp3File.hasId3v1Tag() || mp3File.hasId3v2Tag()) {
-			System.out.println("Tags found!");
-			ID3v2 id3v2Tag = mp3File.getId3v2Tag();
-			System.out.println("Artist: " + id3v2Tag.getArtist());
-			System.out.println("Title: " + id3v2Tag.getTitle());
-		} else {
-			System.out.println("No ID3 tags found!");
-		}
-	}
-
 	public void writeTag(int id, TagTO tag) {
 		String uri = getUriById(id);
 		File file = getFileByVLCUri(uri);
@@ -369,22 +354,8 @@ public class MusicService {
 
 		try {
 			writeTagWithJaudiotagger(file, tag);
-			return;
-		} catch (CannotWriteException | CannotReadException | IOException | ReadOnlyFileException e) {
-			throw new RuntimeException("Problém se čtením souboru", e);
-		} catch (TagException | InvalidAudioFrameException e) {
-			// problém se čtením struktury souburu, dáme šanci další knihovně
-		}
-
-		try {
-			writeTagWithMP3agick(file, tag);
-			return;
-		} catch (InvalidDataException e) {
-			throw new RuntimeException(e);
-		} catch (UnsupportedTagException e) {
-			throw new RuntimeException(e);
-		} catch (IOException e) {
-			throw new RuntimeException(e);
+		} catch (Exception e) {
+			throw new RuntimeException("Problém se zápisem souboru", e);
 		}
 	}
 }
