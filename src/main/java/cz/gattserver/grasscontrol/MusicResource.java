@@ -6,11 +6,9 @@ import cz.gattserver.grasscontrol.interfaces.VersionTO;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.HandlerMapping;
 
-import java.net.URL;
 import java.net.URLDecoder;
 import java.util.List;
 
@@ -46,6 +44,9 @@ public class MusicResource {
 		return musicService.getItemsBySearch(searchPhrase);
 	}
 
+	/**
+	 * Parametrem je escapovaná cesta, která ale kvůli Tomcatu nesmí mít escapované znaky lomítek (/ = %2F)
+	 */
 	@GetMapping(path = "/enqueue/**")
 	void enqueue(HttpServletRequest request) {
 		musicService.enqueue(getCleanDynamicPath(request));
@@ -61,6 +62,9 @@ public class MusicResource {
 		musicService.volume(position);
 	}
 
+	/**
+	 * Parametrem je escapovaná cesta, která ale kvůli Tomcatu nesmí mít escapované znaky lomítek (/ = %2F)
+	 */
 	@GetMapping(path = "/enqueue-and-play/**")
 	void enqueueAndPlay(HttpServletRequest request) {
 		musicService.enqueueAndPlay(getCleanDynamicPath(request));
@@ -85,12 +89,12 @@ public class MusicResource {
 		return resultTO.getMessage();
 	}
 
-	@GetMapping(value ="/start-vlc")
+	@GetMapping(value = "/start-vlc")
 	void startVLC() {
 		musicService.startVLC();
 	}
 
-	@GetMapping(value ="/shutdown")
+	@GetMapping(value = "/shutdown")
 	void shutdown() {
 		musicService.shutdown();
 	}
@@ -159,6 +163,9 @@ public class MusicResource {
 		musicService.random();
 	}
 
+	/**
+	 * Parametrem je escapovaná cesta, která ale kvůli Tomcatu nesmí mít escapované znaky lomítek (/ = %2F)
+	 */
 	@GetMapping(path = "/list/**")
 	List<ShortItemTO> list(HttpServletRequest request) {
 		return musicService.getItems(getCleanDynamicPath(request));
