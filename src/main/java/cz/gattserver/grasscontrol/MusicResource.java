@@ -85,6 +85,16 @@ public class MusicResource {
 		return resultTO.getMessage();
 	}
 
+	@GetMapping(value ="/start-vlc")
+	void startVLC() {
+		musicService.startVLC();
+	}
+
+	@GetMapping(value ="/shutdown")
+	void shutdown() {
+		musicService.shutdown();
+	}
+
 	@GetMapping(value = "/playlist")
 	String playlist(HttpServletResponse response) {
 		ResultTO resultTO = musicService.getPlaylist();

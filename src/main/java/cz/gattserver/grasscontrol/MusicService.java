@@ -1,16 +1,11 @@
 package cz.gattserver.grasscontrol;
 
 import com.google.gson.*;
-import com.mpatric.mp3agic.ID3v2;
-import com.mpatric.mp3agic.InvalidDataException;
-import com.mpatric.mp3agic.Mp3File;
-import com.mpatric.mp3agic.UnsupportedTagException;
 import cz.gattserver.grasscontrol.interfaces.ResultTO;
 import cz.gattserver.grasscontrol.interfaces.TagTO;
 import jakarta.annotation.PostConstruct;
 import org.jaudiotagger.audio.AudioFile;
 import org.jaudiotagger.audio.AudioFileIO;
-import org.jaudiotagger.audio.AudioHeader;
 import org.jaudiotagger.audio.exceptions.CannotReadException;
 import org.jaudiotagger.audio.exceptions.CannotWriteException;
 import org.jaudiotagger.audio.exceptions.InvalidAudioFrameException;
@@ -20,8 +15,12 @@ import org.jaudiotagger.tag.Tag;
 import org.jaudiotagger.tag.TagException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.SpringApplication;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
@@ -36,9 +35,11 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 @Service
-public class MusicService {
+public class MusicService implements ApplicationContextAware {
 
 	private final Logger logger = LoggerFactory.getLogger(MusicService.class);
+
+	private ApplicationContext applicationContext;
 
 	@Autowired
 	private VLCService vlcService;
@@ -357,5 +358,26 @@ public class MusicService {
 		} catch (Exception e) {
 			throw new RuntimeException("Problém se zápisem souboru", e);
 		}
+	}
+
+	// https://www.baeldung.com/spring-boot-shutdown
+	public void shutdown() {
+		int exitCode = SpringApplication.exit(applicationContext, () -> 0);
+		System.exit(exitCode);
+	}
+
+	public void startVLC() {
+		String command = "start vlc";
+		ProcessBuilder pb = new ProcessBuilder("cmd.exe", "/c", command);
+		try {
+			pb.start();
+		} catch (IOException e) {
+			logger.error("Command '" + command + "' failed", e);
+		}
+	}
+
+	@Override
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+		this.applicationContext = applicationContext;
 	}
 }
